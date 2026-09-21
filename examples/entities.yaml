@@ -1,0 +1,3 @@
+---
+# Exemplos de Component/System/API removidos: o catálogo é alimentado pelo
+# ContractsEntityProvider (contratos OpenAPI/AsyncAPI/ODCS) e por examples/org.yaml.

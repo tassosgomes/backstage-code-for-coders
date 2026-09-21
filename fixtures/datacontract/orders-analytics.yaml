@@ -1,0 +1,57 @@
+# Exemplo local de contrato ODCS (Open Data Contract Standard v3) para
+# desenvolvimento sem GitHub. Estende o template do repo de contratos com
+# seções opcionais para exercitar a renderização.
+apiVersion: v3.0.1
+kind: DataContract
+id: 53581432-6c55-4ba2-a65f-72344a91553a
+name: orders-analytics
+version: 1.0.0
+status: draft
+domain: orders
+dataProduct: orders-analytics
+description:
+  purpose: Disponibilizar pedidos para análises de vendas.
+  usage: Agregações de valores de pedidos por data.
+schema:
+  - name: orders
+    logicalType: object
+    description: Um registro por pedido.
+    properties:
+      - name: orderId
+        logicalType: string
+        required: true
+        description: Identificador do pedido no domínio de origem.
+      - name: createdAt
+        logicalType: date
+        required: true
+        description: Data de criação do pedido em UTC.
+      - name: totalAmountCents
+        logicalType: integer
+        required: true
+        description: Valor total em centavos de real brasileiro.
+      - name: customerEmail
+        logicalType: string
+        required: false
+        description: E-mail do cliente (anonimizado após 90 dias).
+      - name: status
+        logicalType: string
+        required: true
+        description: Situação final do pedido.
+        enum: [created, paid, shipped, cancelled]
+parties:
+  - party: time de pedidos
+    role: owner
+  - party: time de dados
+    role: consumer
+servicelevels:
+  - metric: freshness
+    value: 15 minutos
+  - metric: availability
+    value: 99,5%
+quality:
+  expectation: orderId único e não nulo
+support:
+  channel: '#platform'
+  responseTime: 1 dia útil
+notes:
+  - Contrato de exemplo para o modo local do Backstage.

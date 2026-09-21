@@ -1,0 +1,302 @@
+# Acordo de mensageria para a fatia de fundação de CAP-026 (Notificação transacional por e-mail).
+# Descreve a aplicação `notification`: o que ela recebe (pedido de envio, endereçado por qualquer
+# domínio de origem) e o que ela publica (desfecho da entrega). Nesta fatia, a única origem que
+# envia pedidos é Identidade e Acesso. Decisões e origem de cada campo estão em contracts.md.
+asyncapi: 3.0.0
+id: urn:code-4-coders:notification
+info:
+  title: Notificação — pedidos de envio e desfecho de entrega
+  version: 1.0.0
+  description: >
+    Contrato da fatia de fundação de `CAP-026` (PRD `tasks/prd-notificacao-transacional/prd.md`,
+    v1.1, aprovado em 2026-09-21). Cobre o recorte desta entrega: dois modelos de mensagem
+    (`confirmacao-de-conta`, `recuperacao-de-senha`), consentimento sempre verificado e desfecho
+    sempre publicado. Notificação é carteira, não redatora: não julga o motivo do envio, só a
+    validade do pedido (RN-N01, RN-N02, RN-N03; RN-27/RN-28 de Identidade e Acesso).
+defaultContentType: application/json
+servers:
+  rabbitmq:
+    host: '{host}'
+    protocol: amqp
+    description: >
+      Broker RabbitMQ do grupo inicial (BA02/baseline). Host, vhost, credenciais e topologia
+      física (nome de exchange/fila) são parâmetro de implantação da plataforma e não são
+      fixados por este contrato — apenas as garantias abaixo. Exchange `topic`, filas quorum,
+      DLX/DLQ por fila e `x-delivery-limit` já são convenção do baseline (G06), não decisão
+      desta entrega.
+    variables:
+      host:
+        default: localhost
+        description: Resolvido pela configuração de implantação, não por este contrato.
+channels:
+  pedidoDeEnvio:
+    address: notificacao.envio-solicitado.v1
+    description: >
+      Canal endereçado a Notificação. Qualquer domínio de origem publica aqui; nesta fatia,
+      somente Identidade e Acesso o faz (RF-02, RF-03). Routing key versionada por convenção
+      do baseline (`{servico}.{evento}.v{n}`).
+    messages:
+      pedidoDeEnvioSolicitado:
+        $ref: '#/components/messages/PedidoDeEnvioSolicitado'
+  mensagemEntregue:
+    address: notificacao.mensagem-entregue.v1
+    description: Fato publicado por Notificação quando uma entrega se confirma (RF-07).
+    messages:
+      mensagemEntregue:
+        $ref: '#/components/messages/MensagemEntregue'
+  entregaFalhou:
+    address: notificacao.entrega-falhou.v1
+    description: >
+      Fato publicado por Notificação quando uma entrega falha definitivamente — falha
+      permanente imediata ou esgotamento das tentativas (RF-06, RF-07).
+    messages:
+      entregaFalhou:
+        $ref: '#/components/messages/EntregaFalhou'
+operations:
+  receberPedidoDeEnvio:
+    action: receive
+    summary: Aceitar ou recusar um pedido de envio por validade, nunca por mérito (RF-01).
+    channel:
+      $ref: '#/channels/pedidoDeEnvio'
+    messages:
+      - $ref: '#/channels/pedidoDeEnvio/messages/pedidoDeEnvioSolicitado'
+    bindings:
+      amqp:
+        ack: false
+        bindingVersion: '0.3.0'
+    description: >
+      Garantias observáveis (mecanismo de implementação fica na TechSpec):
+      idempotente por `pedidoId` — reentrega do broker não produz segunda mensagem (RN-N09);
+      pedido sem finalidade, com modelo desconhecido ou com dado faltante é recusado e registrado,
+      nunca enviado parcialmente (RF-01); indisponibilidade do provedor de e-mail não recusa o
+      pedido — ele é aceito e retido (RN-N11).
+  publicarMensagemEntregue:
+    action: send
+    summary: Publicar o desfecho de uma entrega confirmada.
+    channel:
+      $ref: '#/channels/mensagemEntregue'
+    messages:
+      - $ref: '#/channels/mensagemEntregue/messages/mensagemEntregue'
+    description: Publicado pelo outbox, nunca direto do caso de uso (G06).
+  publicarEntregaFalhou:
+    action: send
+    summary: Publicar o desfecho de uma entrega definitivamente falha.
+    channel:
+      $ref: '#/channels/entregaFalhou'
+    messages:
+      - $ref: '#/channels/entregaFalhou/messages/entregaFalhou'
+    description: >
+      Publicado quando a falha é permanente (endereço inexistente, recusa do provedor) ou quando
+      as tentativas se esgotam e o pedido segue para tratamento manual (RF-06). Publicado pelo
+      outbox, nunca direto do caso de uso (G06).
+components:
+  messages:
+    PedidoDeEnvioSolicitado:
+      name: PedidoDeEnvioSolicitado
+      title: Pedido de envio solicitado
+      summary: Solicitação endereçada a Notificação para entregar uma mensagem — nunca texto pronto.
+      contentType: application/json
+      correlationId:
+        location: $message.header#/correlationId
+      headers:
+        type: object
+        required: [correlationId]
+        properties:
+          correlationId:
+            type: string
+            description: 'Identificador de correlação do fluxo de origem (ex.: o cadastro que originou o pedido).'
+      payload:
+        $ref: '#/components/schemas/PedidoDeEnvioSolicitadoPayload'
+      examples:
+        - name: confirmacaoDeConta
+          headers:
+            correlationId: identidade-cadastro-2026-09-21-0001
+          payload:
+            pedidoId: 9f8afbd4-ec18-42a8-abfa-e988e47812f6
+            tenantId: code-4-coders
+            destinatario: aluno@example.com
+            finalidade: confirmacao-de-conta
+            modelo: confirmacao-de-conta
+            dados:
+              nome: Ana Souza
+              link: 'https://contas.code4coders.com.br/confirmar?token=abc123'
+            solicitadoEm: '2026-09-21T10:30:00Z'
+    MensagemEntregue:
+      name: MensagemEntregue
+      title: Mensagem entregue
+      summary: Uma mensagem transacional foi confirmada como entregue pelo provedor.
+      contentType: application/json
+      correlationId:
+        location: $message.header#/correlationId
+      headers:
+        type: object
+        required: [correlationId]
+        properties:
+          correlationId:
+            type: string
+            description: Repete o correlationId do pedido que originou esta entrega.
+      payload:
+        $ref: '#/components/schemas/MensagemEntreguePayload'
+      examples:
+        - name: confirmacaoDeContaEntregue
+          headers:
+            correlationId: identidade-cadastro-2026-09-21-0001
+          payload:
+            pedidoId: 9f8afbd4-ec18-42a8-abfa-e988e47812f6
+            tenantId: code-4-coders
+            finalidade: confirmacao-de-conta
+            destinatario: aluno@example.com
+            canal: email
+            entregueEm: '2026-09-21T10:30:07Z'
+    EntregaFalhou:
+      name: EntregaFalhou
+      title: Entrega falhou
+      summary: Uma entrega transacional falhou definitivamente, com motivo.
+      contentType: application/json
+      correlationId:
+        location: $message.header#/correlationId
+      headers:
+        type: object
+        required: [correlationId]
+        properties:
+          correlationId:
+            type: string
+            description: Repete o correlationId do pedido que originou esta falha.
+      payload:
+        $ref: '#/components/schemas/EntregaFalhouPayload'
+      examples:
+        - name: recuperacaoDeSenhaFalhou
+          headers:
+            correlationId: identidade-recuperacao-2026-09-21-0007
+          payload:
+            pedidoId: 2c9c9a3a-3b8a-4e1a-9a4e-6a2f2a9b8c11
+            tenantId: code-4-coders
+            finalidade: recuperacao-de-senha
+            motivo: endereco-inexistente
+            esgotouTentativas: false
+            falhouEm: '2026-09-21T10:31:02Z'
+  schemas:
+    PedidoDeEnvioSolicitadoPayload:
+      type: object
+      required:
+        [
+          pedidoId,
+          tenantId,
+          destinatario,
+          finalidade,
+          modelo,
+          dados,
+          solicitadoEm,
+        ]
+      properties:
+        pedidoId:
+          type: string
+          format: uuid
+          description: >
+            Identidade estável do pedido de envio, atribuída pela origem. Chave de idempotência
+            (RN-N09): reentrega do mesmo pedidoId pelo broker não produz segunda mensagem. Um
+            reenvio deliberado (ex.: aluno pede novo link) é um pedidoId novo, não uma correção
+            do anterior (RF-02, terceiro critério).
+        tenantId:
+          type: string
+          description: Convenção de baseline (BA10 · G07) — toda entidade e todo pedido carrega tenant_id desde a Fase 1.
+        destinatario:
+          type: string
+          format: email
+          description: >
+            E-mail do aluno. Exceção declarada ao mascaramento de RN-N07/RN-21: é o destinatário,
+            e não há entrega sem ele (RN-26 do domain doc de Identidade e Acesso). Em claro apenas
+            aqui e no Registro de Entrega; nunca em log, span, métrica ou payload de erro.
+        finalidade:
+          $ref: '#/components/schemas/Finalidade'
+        modelo:
+          $ref: '#/components/schemas/Finalidade'
+        dados:
+          $ref: '#/components/schemas/DadosDoModelo'
+        solicitadoEm:
+          type: string
+          format: date-time
+          description: Instante em que a origem emitiu o pedido.
+    MensagemEntreguePayload:
+      type: object
+      required:
+        [pedidoId, tenantId, finalidade, destinatario, canal, entregueEm]
+      properties:
+        pedidoId:
+          type: string
+          format: uuid
+          description: Correlaciona ao pedido de envio original.
+        tenantId:
+          type: string
+        finalidade:
+          $ref: '#/components/schemas/Finalidade'
+        destinatario:
+          type: string
+          format: email
+          description: >
+            Exigido explicitamente pelo critério de aceite de RF-07. Não é o corpo da mensagem
+            (RN-N08) e não substitui o mascaramento em log/span/métrica (RN-N07), que se aplica
+            aos caminhos de observabilidade, não a este fato de integração.
+        canal:
+          type: string
+          enum: [email]
+          description: Único canal desta fatia (Canal do Domain Map). Fixo como enum de um valor para não implicar suporte a outro canal.
+        entregueEm:
+          type: string
+          format: date-time
+    EntregaFalhouPayload:
+      type: object
+      required:
+        [pedidoId, tenantId, finalidade, motivo, esgotouTentativas, falhouEm]
+      properties:
+        pedidoId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+        finalidade:
+          $ref: '#/components/schemas/Finalidade'
+        motivo:
+          type: string
+          description: >
+            Motivo da falha definitiva, em texto estável para diagnóstico (ex.: "endereco-inexistente",
+            "recusa-permanente-do-provedor", "tentativas-esgotadas"). O PRD não fixa um vocabulário
+            fechado; a TechSpec pode declará-lo sem quebrar este contrato (campo permanece string).
+        esgotouTentativas:
+          type: boolean
+          description: >
+            Verdadeiro quando a falha só se confirmou após esgotar o limite de tentativas (RF-06,
+            terceiro critério — o pedido também segue para tratamento manual/DLQ e a operação é
+            alertada). Falso para falha permanente reconhecida de imediato (endereço inexistente,
+            recusa do provedor).
+        falhouEm:
+          type: string
+          format: date-time
+    Finalidade:
+      type: string
+      enum: [confirmacao-de-conta, recuperacao-de-senha]
+      description: >
+        Nesta fatia, `modelo` e `finalidade` compartilham o mesmo vocabulário porque há exatamente
+        um Modelo de Mensagem por finalidade (decisão registrada em contracts.md). Os dois campos
+        permanecem distintos no payload porque RF-01 os recusa por motivos diferentes — finalidade
+        não declarada vs. modelo desconhecido — e porque o segundo PRD de `CAP-026` (passo 8)
+        deve poder acrescentar modelo sem reabrir este schema.
+    DadosDoModelo:
+      type: object
+      required: [nome, link]
+      properties:
+        nome:
+          type: string
+          description: Nome do aluno, para personalizar a mensagem.
+        link:
+          type: string
+          format: uri
+          description: >
+            Link completo com o token de verificação embutido. A validade exibida no texto da
+            mensagem NÃO viaja aqui: é renderizada pelo Modelo de Mensagem a partir do parâmetro
+            de validade vigente por finalidade, de Notificação (RN-N13, RN-N14, RN-N15; QP-02
+            resolvida em 2026-09-20). Ver nota de risco operacional em contracts.md.
+      description: >
+        Forma única para as duas finalidades desta fatia (mesmos dois campos). O segundo PRD pode
+        precisar de forma distinta por modelo; quando isso ocorrer, este schema evolui para um
+        `oneOf` por modelo sem quebrar o consumidor desta fatia (campos aditivos).
