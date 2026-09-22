@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: tassosgomes/template-pipeline/.github/workflows/ci-react-ts.yml@v1
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    with:
+      version: '24'
+      docker-context: .
+      dockerfile: packages/backend/Dockerfile
+      # PRs validate the source; main and manual runs publish the image to GHCR.
+      build-container: ${{ github.event_name != 'pull_request' }}
+      run-dast: false
+      platform-ref: v1

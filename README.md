@@ -57,6 +57,21 @@ rate limits maiores exporte `GITHUB_TOKEN`).
 | `CONTRACTS_LOCAL_DIR`   | `../../fixtures`                                 | Pasta no modo local (relativa a `packages/backend`) |
 | `GITHUB_TOKEN`          | —                                                | PAT opcional (rate limit/repos privados)            |
 
+Para executar a imagem de produção no Coolify, configure também:
+
+| Variável            | Descrição |
+| ------------------- | --------- |
+| `APP_BASE_URL`      | URL pública do Backstage, por exemplo `https://backstage.example.com` |
+| `BACKEND_SECRET`    | Segredo usado para assinar tokens do backend |
+| `POSTGRES_HOST`     | Host do PostgreSQL |
+| `POSTGRES_PORT`     | Porta do PostgreSQL, normalmente `5432` |
+| `POSTGRES_USER`     | Usuário do PostgreSQL |
+| `POSTGRES_PASSWORD` | Senha do PostgreSQL |
+| `POSTGRES_DB`       | Nome do banco do PostgreSQL |
+| `ALLOW_GUEST_AUTH`  | Use `true` somente para uma instância de demonstração; mantenha `false` em produção |
+
+No Coolify, use a imagem `ghcr.io/tassosgomes/backstage-code-for-coders`, a porta interna `7007` e o health check `/.backstage/health/v1/readiness`.
+
 Modo local (sem depender do GitHub):
 
 ```bash

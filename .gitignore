@@ -26,6 +26,9 @@ node_modules/
 # Node version directives
 .nvmrc
 
+# Checkout da plataforma feito pelos workflows reusáveis
+.platform/
+
 # dotenv environment variables file
 .env
 .env.test
