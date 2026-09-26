@@ -4,6 +4,7 @@ import apiDocsPlugin from '@backstage/plugin-api-docs/alpha';
 import { navModule } from './modules/nav';
 import { homeModule } from './modules/home';
 import { contractsModule } from './modules/contracts';
+import { themeModule } from './modules/theme';
 
 export default createApp({
   features: [
@@ -12,5 +13,6 @@ export default createApp({
     contractsModule,
     navModule,
     homeModule,
+    themeModule,
   ],
 });

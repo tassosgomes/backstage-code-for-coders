@@ -1,0 +1,22 @@
+:root {
+  --c4c-brand-primary: #7c3aed;
+}
+
+:root,
+[data-theme-mode='light'] {
+  --bui-ring: var(--c4c-brand-primary);
+  --bui-accent-bg: var(--c4c-brand-primary);
+  --bui-accent-bg-hover: #6d28d9;
+  --bui-accent-bg-disabled: #a78bfa;
+  --bui-accent-fg: #ffffff;
+  --bui-accent-fg-disabled: #f5f3ff;
+}
+
+[data-theme-mode='dark'] {
+  --bui-ring: #a78bfa;
+  --bui-accent-bg: var(--c4c-brand-primary);
+  --bui-accent-bg-hover: #8b5cf6;
+  --bui-accent-bg-disabled: #4c1d95;
+  --bui-accent-fg: #ffffff;
+  --bui-accent-fg-disabled: #d8b4fe;
+}

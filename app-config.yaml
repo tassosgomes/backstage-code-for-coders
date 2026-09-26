@@ -6,6 +6,10 @@ app:
   packages: all
 
   extensions:
+    # Replace the built-in themes with the Code for Coders color palette.
+    - theme:app/light: false
+    - theme:app/dark: false
+
     # Default landing page configuration.
     # The catalog is mounted at /catalog by default but is overridden here to
     # serve as the root page. To switch to the Home page, comment out the
