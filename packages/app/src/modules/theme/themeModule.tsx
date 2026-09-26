@@ -21,6 +21,17 @@ const lightTheme = createUnifiedTheme({
     },
     tabbar: { indicator: brandGreen },
   },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        containedPrimary: {
+          backgroundColor: brandPurple,
+          color: '#ffffff',
+          '&:hover': { backgroundColor: '#6d28d9' },
+        },
+      },
+    },
+  },
 });
 
 const darkTheme = createUnifiedTheme({
@@ -35,6 +46,17 @@ const darkTheme = createUnifiedTheme({
       indicator: brandPurple,
     },
     tabbar: { indicator: brandGreen },
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        containedPrimary: {
+          backgroundColor: brandPurple,
+          color: '#ffffff',
+          '&:hover': { backgroundColor: '#8b5cf6' },
+        },
+      },
+    },
   },
 });
 
