@@ -42,7 +42,7 @@ export const themeModule = createFrontendModule({
   pluginId: 'app',
   extensions: [
     ThemeBlueprint.make({
-      name: 'light',
+      name: 'code4coders-light',
       params: {
         theme: {
           id: 'light',
@@ -58,7 +58,7 @@ export const themeModule = createFrontendModule({
       },
     }),
     ThemeBlueprint.make({
-      name: 'dark',
+      name: 'code4coders-dark',
       params: {
         theme: {
           id: 'dark',
